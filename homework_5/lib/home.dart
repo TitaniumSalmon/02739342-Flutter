@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'apiservices.dart';
 import 'triviaJSON.dart';
 
+bool firstTime = true;
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -11,6 +13,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Results triviaQuestion;
+  int? selectedAnswerIndex;
+  bool hasAnswered = false;
 
   @override
   void initState() {
@@ -27,98 +31,84 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    String ipAddress = '';
+    List<String> allAnswers = [];
+    if (triviaQuestion.question!.isNotEmpty) {
+      allAnswers = [...?triviaQuestion.incorrectAnswers, triviaQuestion.correctAnswer!];
+      
+      firstTime = false;
+    }
+    if (firstTime) {
+      allAnswers.shuffle();
+      firstTime = false;
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'IP TriviaJSON',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Gaming Trivia', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.purple,
       ),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Padding(
-            //   padding: const EdgeInsets.all(20.0),
-            //   child: const Text(
-            //     'Please enter an IP address to get its TriviaJSON:',
-            //     style: TextStyle(fontSize: 18, color: Colors.black),
-            //   ),
-            // ),
-            // Padding(
-            //   padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            //   child: TextField(
-            //     decoration: InputDecoration(
-            //       border: OutlineInputBorder(),
-            //       labelText: 'IP Address',
-            //       hintText: 'Enter a valid IP address',
-            //     ),
-            //     keyboardType: TextInputType.text,
-            //     onChanged: (value) {
-            //       ipAddress = value; // Capture the input IP address
-            //     },
-            //   ),
-            // ),
-            Container(
-              
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: ElevatedButton(
-                onPressed: () async {
-                  // Action when button is pressed
-                  await Apiservices()
-                      .requestGeolocation('')
-                      .then((TriviaJSON triviaJSON) {
-                        manageResponse(triviaJSON);
-                      })
-                      .catchError((error) {
-                        showSnackBar('Error: $error');
-                      });
-                },
-                child: const Text('Get Question'),
+          children: [
+            if (triviaQuestion.question!.isNotEmpty)
+              ListTile(
+                title: const Text('Q:'),
+                subtitle: Text(triviaQuestion.question!),
               ),
+            const SizedBox(height: 20),
+            if (triviaQuestion.question!.isNotEmpty)
+              Column(
+                children: allAnswers.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  String answer = entry.value;
+                  return RadioListTile<int>(
+                    title: Text(answer),
+                    value: index,
+                    groupValue: selectedAnswerIndex,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedAnswerIndex = value;
+                        hasAnswered = true;
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Get Question'),
+              onPressed: () async {
+                if (hasAnswered == false && triviaQuestion.question!.isNotEmpty) {
+                  showSnackBar('Please select an answer before getting a new question.');
+                  return;
+                }
+                selectedAnswerIndex = null;
+                hasAnswered = false;
+                firstTime = true;
+
+                await Apiservices()
+                    .requestGeolocation('')
+                    .then((TriviaJSON triviaJSON) {
+                  manageResponse(triviaJSON);
+                }).catchError((error) {
+                  showSnackBar('Error: $error');
+                });
+              },
             ),
-            SizedBox(height: 20),
-                
-            triviaQuestion.question != ''
-                ? Container(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        title: const Text('Q:'),
-                        subtitle: Text('${triviaQuestion.question}'),
-                      ),
-                      ListTile(
-                        title: const Text('A1:'),
-                        subtitle: Text('${triviaQuestion.correctAnswer}'),
-                      ),
-                      ListTile(
-                        title: const Text('A2:'),
-                        subtitle: Text('${triviaQuestion.incorrectAnswers?[0]}'),
-                      ),
-                      ListTile(
-                        title: const Text('A2:'),
-                        subtitle: Text('${triviaQuestion.incorrectAnswers?[1]}'),
-                      ),
-                      ListTile(
-                        title: const Text('A2:'),
-                        subtitle: Text('${triviaQuestion.incorrectAnswers?[2]}'),
-                      ),
-                    ],
-                  ),
-                )
-                : Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: const Text(
-                    'No TriviaJSON data available.',
-                    style: TextStyle(fontSize: 16, color: Colors.red),
-                  ),
-                ),
+            const SizedBox(height: 20),
+            if (selectedAnswerIndex != null && triviaQuestion.question!.isNotEmpty)
+              Text(
+                allAnswers[selectedAnswerIndex!] == triviaQuestion.correctAnswer
+                    ? '✅ Correct!'
+                    : '❌ Incorrect! Correct Answer: ${triviaQuestion.correctAnswer}',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
           ],
         ),
       ),
@@ -141,14 +131,9 @@ class _HomePageState extends State<HomePage> {
         showSnackBar('No trivia question found.');
       }
     });
-    // if (triviaJSON.status != 'success') {
-    //   showSnackBar('Error: ${triviaJSON.message}');
-    // }
   }
 
   void showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 }
