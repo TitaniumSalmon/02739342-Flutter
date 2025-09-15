@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:electricity_payment/authenticationService.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -7,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'databaseHelper.dart';
 import 'paymentEntry.dart';
 import 'search.dart';
+import 'loginScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +29,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         bottomAppBarTheme: BottomAppBarTheme(color: Colors.blue),
       ),
-      home: MyHomePage(title: 'Electricity Payments'),
+      home: LoginScreen(),
     );
   }
 }
@@ -52,6 +54,17 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Text(widget.title, style: TextStyle(fontSize: 18)),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              AuthenticationService().logout();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (Route<dynamic> route) => false,
+              );
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
@@ -154,23 +167,24 @@ class _MyHomePageState extends State<MyHomePage> {
           confirmDismiss: (direction) async {
             return await showDialog(
               context: context,
-              builder:(ctx) => AlertDialog(
-                title: Text("Confirm Delete"),
-                content: Text("Are you sure you want to delete?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: Text("Cancel"),
+              builder:
+                  (ctx) => AlertDialog(
+                    title: Text("Confirm Delete"),
+                    content: Text("Are you sure you want to delete?"),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: Text("Cancel"),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: Text(
+                          "Delete",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    child: Text(
-                      "Delete",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
             );
           },
           child: ListTile(
